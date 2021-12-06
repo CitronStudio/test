@@ -1,0 +1,115 @@
+Option Explicit
+
+Dim Pos(10, 10) As String               'ポジション名 (シートに何人いるか, ボタンから数えて何番目か)
+Dim Pos_Of_Player(10, 300) As String    'ポジション (プレイヤーNo, 何ハンド目か)
+Dim ST_BTN As Integer                   '何番目のプレイヤーがスタートボタンか
+Dim G_End As Integer                    '何ハンド目でゲームが終わるか
+Dim On_Seat(300) As Integer             'シートに何人いるか (何ハンド目か)
+Dim BTN(300) As Integer                 'ボタンが何番目のプレイヤーか (何ハンド目か)
+Dim i, k, n, p As Integer               '汎用の変数
+
+Sub Discript_Position()
+    
+'再計算・画面更新オフ
+Application.ScreenUpdating = False
+Application.Calculation = xlCalculationManual
+
+'各ワークシートの定義
+Dim TH As Worksheet: Set TH = Worksheets("T_Hand")
+Dim TP As Worksheet: Set TP = Worksheets("T_Position")
+
+'ポジションの定義
+Dim_Position
+
+'何ハンド目でゲームが終わるか、及び各ハンドの人数を調べる
+Calc_Game_End
+
+'最初のボタンプレイヤー取得（参照先はあとで別のとこにするかも）
+ST_BTN = TP.Range("C12").Value
+BTN(1) = ST_BTN
+
+For n = 1 To G_End
+
+    Select Case n
+        
+        Case 1
+            
+            For i = 1 To On_Seat(1)
+            
+                Pos_Of_Player(ST_BTN, 1) = Pos(On_Seat(1), i)
+                ST_BTN = ST_BTN + 1
+                If ST_BTN > On_Seat(1) Then ST_BTN = 1
+                
+            Next i
+            
+            For i = 1 To On_Seat(1) 'シートに記述（あとで一括にまとめる方がいい）
+                TH.Cells(4, i + 12).Value = Pos_Of_Player(i, 1)
+            Next i
+        
+        Case Else
+            
+            BTN(n) = BTN(n - 1) + 1
+            If BTN(n) > On_Seat(1) Then BTN(n) = 1
+                
+            Do
+                If TH.Cells(n + 3, BTN(n) + 2) <> "" Then Exit Do
+                BTN(n) = BTN(n) + 1
+                If BTN(n) > On_Seat(1) Then BTN(n) = 1
+            Loop
+                
+            k = BTN(n)
+            p = 1
+            For i = 1 To On_Seat(1)
+                        
+                If TH.Cells(n + 3, k + 2) = "" Then 'ここに1Bigの処理等をいれる
+                    Pos_Of_Player(k, n) = ""
+                Else
+                    Pos_Of_Player(k, n) = Pos(On_Seat(n), p)
+                    p = p + 1
+                End If
+                        
+                k = k + 1
+                If k > On_Seat(1) Then k = 1
+                    
+            Next i
+            
+            For i = 1 To On_Seat(1) 'シートに記述（あとで一括にまとめる方がいい）
+                TH.Cells(n + 3, i + 12).Value = Pos_Of_Player(i, n)
+            Next i
+                   
+    End Select
+
+Next n
+
+'再計算・画面更新オフ
+Application.ScreenUpdating = True
+Application.Calculation = xlCalculationAutomatic
+Application.Calculate
+
+End Sub
+
+Sub Dim_Position()
+
+Dim X, Y As Integer
+Dim TP As Worksheet: Set TP = Worksheets("T_Position")
+
+For X = 2 To 10
+    For Y = 1 To X
+        Pos(X, Y) = TP.Cells(X, Y + 1).Value
+    Next Y
+Next X
+
+End Sub
+
+Sub Calc_Game_End()
+
+Dim TH As Worksheet: Set TH = Worksheets("T_Hand")
+
+For n = 1 To 3000
+    On_Seat(n) = TH.Cells(n + 3, 23).Value
+    If On_Seat(n) = 0 Then
+        G_End = n - 1: Exit For
+    End If
+Next n
+
+End Sub
