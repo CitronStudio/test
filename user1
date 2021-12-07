@@ -2,7 +2,6 @@ Option Explicit
 
 Dim Pos(10, 10) As String               'ポジション名 (シートに何人いるか, ボタンから数えて何番目か)
 Dim Pos_Of_Player(10, 300) As String    'ポジション (プレイヤーNo, 何ハンド目か)
-Dim ST_BTN As Integer                   '何番目のプレイヤーがスタートボタンか
 Dim G_End As Integer                    '何ハンド目でゲームが終わるか
 Dim On_Seat(300) As Integer             'シートに何人いるか (何ハンド目か)
 Dim BTN(300) As Integer                 'ボタンが何番目のプレイヤーか (何ハンド目か)
@@ -25,44 +24,74 @@ Dim_Position
 Calc_Game_End
 
 '最初のボタンプレイヤー取得（参照先はあとで別のとこにするかも）
-ST_BTN = TP.Range("C12").Value
-BTN(1) = ST_BTN
+BTN(1) = TP.Range("C12").Value
+
+TH.Range("M4:V303").ClearContents
 
 For n = 1 To G_End
 
     Select Case n
-        
+    
+        '1ハンド目。スタートボタンから順番にポジションを配る
         Case 1
             
+            k = BTN(1)
             For i = 1 To On_Seat(1)
             
-                Pos_Of_Player(ST_BTN, 1) = Pos(On_Seat(1), i)
-                ST_BTN = ST_BTN + 1
-                If ST_BTN > On_Seat(1) Then ST_BTN = 1
+                Pos_Of_Player(k, 1) = Pos(On_Seat(1), i)
+                k = k + 1
+                If k > On_Seat(1) Then k = 1
                 
             Next i
             
-            For i = 1 To On_Seat(1) 'シートに記述（あとで一括にまとめる方がいい）
+            For i = 1 To On_Seat(1) '<----シートに記述（あとで一括にまとめる方がいい）
                 TH.Cells(4, i + 12).Value = Pos_Of_Player(i, 1)
             Next i
-        
+            
+        '2ハンド目以降
         Case Else
             
+            'ボタンを1つ動かす
             BTN(n) = BTN(n - 1) + 1
             If BTN(n) > On_Seat(1) Then BTN(n) = 1
-                
+               
+            'シートオープンしている人は飛ばす。前ハンドSB(SBd)の場合デッドボタンとする
             Do
                 If TH.Cells(n + 3, BTN(n) + 2) <> "" Then Exit Do
+                If Pos_Of_Player(BTN(n), n - 1) Like "SB*" Then Exit Do
                 BTN(n) = BTN(n) + 1
                 If BTN(n) > On_Seat(1) Then BTN(n) = 1
             Loop
                 
             k = BTN(n)
             p = 1
+            
+            'ボタンから順番にポジションを配る
             For i = 1 To On_Seat(1)
                         
-                If TH.Cells(n + 3, k + 2) = "" Then 'ここに1Bigの処理等をいれる
-                    Pos_Of_Player(k, n) = ""
+                'シートオープンしている人の処理(ハンドを持っていない場合、いないと見なす)
+                If TH.Cells(n + 3, k + 2) = "" Then
+                
+                    '前ハンドBBだった場合、1Bigとなる。当ハンドのシート数を暫定で1つ増やしておく
+                    '1 BigのときのSBを「SBd」と表記する
+                    If Pos_Of_Player(k, n - 1) = "BB" Then
+                        On_Seat(n) = On_Seat(n) + 1
+                        Pos_Of_Player(k, n) = Pos(On_Seat(n), p) & "d"
+                        p = p + 1
+                    
+                    '前ハンドSB(SBd)だった場合、デッドボタンとなる。当ハンドのシート数を暫定で1つ増やしておく
+                    'デッドボタンを「BTNd」と表記する
+                    ElseIf Pos_Of_Player(k, n - 1) Like "SB*" Then
+                        On_Seat(n) = On_Seat(n) + 1
+                        Pos_Of_Player(k, n) = Pos(On_Seat(n), p) & "d"
+                        p = p + 1
+                        
+                    'その他、何も無ければ空欄とする
+                    Else
+                        Pos_Of_Player(k, n) = ""
+                    End If
+                    
+                'シートにいる人には、順番にポジションを配る
                 Else
                     Pos_Of_Player(k, n) = Pos(On_Seat(n), p)
                     p = p + 1
@@ -81,7 +110,7 @@ For n = 1 To G_End
 
 Next n
 
-'再計算・画面更新オフ
+'再計算・画面更新オン
 Application.ScreenUpdating = True
 Application.Calculation = xlCalculationAutomatic
 Application.Calculate
